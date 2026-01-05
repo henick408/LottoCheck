@@ -9,7 +9,7 @@ import java.util.Properties
 
 interface LottoService {
 
-    val token: () -> String
+    private val token: () -> String
         get() = {
             val props = Properties()
             val inputStream = Thread.currentThread()
