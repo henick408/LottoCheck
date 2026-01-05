@@ -1,6 +1,5 @@
 package org.henick
 
-import java.time.LocalDate
 
 data class DrawResponse(
     val drawSystemId: Int,
@@ -18,4 +17,11 @@ data class Result(
     val gameType: String,
     val resultsJson: List<Int>,
     val specialResults: List<Int>
+)
+
+data class DrawResponseByDatePerGame(
+    val totalRows: Int,
+    val items: List<DrawResponse>,
+    val meta: Any,
+    val code: Int
 )
