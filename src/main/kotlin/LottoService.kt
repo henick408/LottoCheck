@@ -22,29 +22,29 @@ interface LottoService {
     @GET("last-results")
     suspend fun getLastDraws(
         @Header("secret") secret: String = token()
-    )
+    ): List<DrawResponse>
 
     @GET("last-results-per-game")
     suspend fun getLastDrawsPerGame(
-        @Header("secret") secret: String = token(),
-        @Query("gameType") gameType: String
-    )
+        @Query("gameType") gameType: String,
+        @Header("secret") secret: String = token()
+    ): List<DrawResponse>
 
     @GET("by-date?")
     suspend fun getDrawsByDate(
-        @Header("secret") secret: String = token(),
-        @Query("drawDate") drawDate: LocalDate
-    )
+        @Query("drawDate") drawDate: String,
+        @Header("secret") secret: String = token()
+    ): List<DrawResponse>
 
     @GET("by-date-per-game?")
     suspend fun getDrawsByDatePerGame(
-        @Header("secret") secret: String = token(),
         @Query("gameType") gameType: String,
-        @Query("drawDate") drawDate: LocalDate,
+        @Query("drawDate") drawDate: String,
         @Query("index") index: Int = 1,
         @Query("size") size: Int = 1,
         @Query("sort") sort: String = "drawSystemId",
-        @Query("order") order: String = "ASC"
-    )
+        @Query("order") order: String = "ASC",
+        @Header("secret") secret: String = token()
+    ): List<DrawResponse>
 
 }

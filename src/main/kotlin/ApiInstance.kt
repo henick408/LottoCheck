@@ -8,13 +8,14 @@ class ApiInstance {
     companion object {
         private val retrofitBuilder =
             Retrofit.Builder()
-                .baseUrl("https://developers.lotto.pl/api/open/v1/lotteries/")
+                .baseUrl("https://developers.lotto.pl/api/open/v1/lotteries/draw-results/")
                 .addConverterFactory(GsonConverterFactory.create())
 
 
-        private val retrofit = retrofitBuilder.build()
+        private val httpClient = OkHttpClient.Builder().build()
 
-        private val httpClient = OkHttpClient.Builder()
+        private val retrofit = retrofitBuilder.client(httpClient).build()
+
 
         fun <T> createService(serviceClass: Class<T>): T {
             return retrofit.create(serviceClass)
