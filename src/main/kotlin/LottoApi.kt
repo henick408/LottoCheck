@@ -66,7 +66,7 @@ object LottoApi {
 
             winningNumbers = listOf(WinningNumbers(
                 numbers = numbers,
-                numbersHitAmount = numbersHit,
+                numbersHitAmount = numbersHit.toString(),
                 gameType = "MiniLotto",
             ))
         )
@@ -89,11 +89,11 @@ object LottoApi {
 
         val winningNumbers: MutableList<WinningNumbers> = mutableListOf()
 
-        if (numbersHit >= 2) {
-            winningNumbers.add(WinningNumbers(numbers = numbers, numbersHitAmount = numbersHit, gameType = "Lotto"))
+        if (numbersHit >= 3) {
+            winningNumbers.add(WinningNumbers(numbers = numbers, numbersHitAmount = numbersHit.toString(), gameType = "Lotto"))
         }
-        if (numbersHitPlus >= 2) {
-            winningNumbers.add(WinningNumbers(numbers = numbers, numbersHitAmount = numbersHitPlus, gameType = "LottoPlus"))
+        if (numbersHitPlus >= 3) {
+            winningNumbers.add(WinningNumbers(numbers = numbers, numbersHitAmount = numbersHitPlus.toString(), gameType = "LottoPlus"))
         }
         if (winningNumbers.isEmpty()) {
             return null
@@ -102,6 +102,41 @@ object LottoApi {
         return WinInfo(
             winningNumbers = winningNumbers
         )
+
+    }
+
+    suspend fun checkLastEuroJackpot(numbersFirst: List<Int>, numbersSecond: List<Int>): WinInfo? {
+
+        val errorWinInfoFirst = numbersFirst.validateTicketData("EuroJackpotFirst")
+        val errorWinInfoSecond = numbersSecond.validateTicketData("EuroJackpotSecond")
+        if (errorWinInfoFirst != null) {
+            return errorWinInfoFirst
+        }
+        if (errorWinInfoSecond != null) {
+            return errorWinInfoSecond
+        }
+
+        val draws = service.getLastDrawsInfoPerGame("EuroJackpot")
+
+        val resultsFirst = draws.first().results.first().resultsJson
+        val resultsSecond = draws.first().results.first().specialResults
+
+        val numbersHitFirst = numbersFirst.filter { resultsFirst.contains(it) }.size
+        val numbersHitSecond = numbersSecond.filter { resultsSecond.contains(it) }.size
+
+        val winInfo = WinInfo(
+            winningNumbers = listOf(WinningNumbers(
+                numbersFirst + numbersSecond,
+                numbersHitAmount = "$numbersHitFirst+$numbersHitSecond",
+                gameType = "EuroJackpot"
+            ))
+        )
+
+        if (!(numbersHitFirst >= 3 || (numbersHitFirst == 2 && numbersHitSecond >= 1) || (numbersHitFirst == 1 && numbersHitSecond == 2))) {
+            return null
+        }
+
+        return winInfo
 
     }
 
@@ -139,7 +174,7 @@ data class WinInfo(
 
 data class WinningNumbers(
     val numbers: List<Int>,
-    val numbersHitAmount: Int = 0,
+    val numbersHitAmount: String = "",
     val gameType: String = ""
 )
 
