@@ -6,9 +6,9 @@ fun main(): Unit = runBlocking {
 
     //println(LottoApi.getLastDraws())
     //println(LottoApi.getLastDrawsPerGame("MiniLotto"))
-    println(LottoApi.getDrawsByDate("2026-01-04"))
+    //println(LottoApi.getDrawsByDate("2026-01-04"))
     //println(LottoApi.getDrawsByDatePerGame(gameType = "MiniLotto", drawDate = "2026-01-04"))
 
-
+    println(LottoApi.checkLastMiniLotto(listOf(3, 2, 18, 25, 36)))
 
 }

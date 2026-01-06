@@ -3,8 +3,6 @@ package org.henick
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Query
-import java.io.FileInputStream
-import java.time.LocalDate
 import java.util.Properties
 
 interface LottoService {
@@ -20,24 +18,24 @@ interface LottoService {
         }
 
     @GET("last-results")
-    suspend fun getLastDraws(
+    suspend fun getLastDrawsInfo(
         @Header("secret") secret: String = token()
     ): List<DrawResponse>
 
     @GET("last-results-per-game")
-    suspend fun getLastDrawsPerGame(
+    suspend fun getLastDrawsInfoPerGame(
         @Query("gameType") gameType: String,
         @Header("secret") secret: String = token()
     ): List<DrawResponse>
 
     @GET("by-date?")
-    suspend fun getDrawsByDate(
+    suspend fun getDrawsInfoByDate(
         @Query("drawDate") drawDate: String,
         @Header("secret") secret: String = token()
     ): List<DrawResponse>
 
     @GET("by-date-per-game?")
-    suspend fun getDrawsByDatePerGame(
+    suspend fun getDrawsInfoByDatePerGame(
         @Query("gameType") gameType: String,
         @Query("drawDate") drawDate: String,
         @Query("index") index: Int = 1,
@@ -45,6 +43,6 @@ interface LottoService {
         @Query("sort") sort: String = "drawSystemId",
         @Query("order") order: String = "ASC",
         @Header("secret") secret: String = token()
-    ): List<DrawResponse>
+    ): DrawResponseByDatePerGame
 
 }
