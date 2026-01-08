@@ -171,20 +171,11 @@ object LottoApi {
                 if (numbers.size % 2 != 0) {
                     return null
                 }
-                val setFirst: MutableList<Set<Int>> = mutableListOf()
-                val setSecond: MutableList<Set<Int>> = mutableListOf()
 
-                for (i in 0..<numbers.size) {
-                    if (i % 2 == 0) {
-                        setFirst.add(numbers[i])
-                    } else {
-                        setSecond.add(numbers[i])
-                    }
+                for (i in 0..<numbers.size step 2) {
+                    winInfoList.add(checkLastEuroJackpot(numbers[i], numbers[i+1]))
                 }
 
-                for(i in 0..<setFirst.size) {
-                    winInfoList.add(checkLastEuroJackpot(setFirst[i], setSecond[i]))
-                }
             }
         }
 
