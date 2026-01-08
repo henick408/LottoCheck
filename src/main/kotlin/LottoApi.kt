@@ -45,7 +45,7 @@ object LottoApi {
         return null
     }
 
-    suspend fun checkLastMiniLotto(numbers: List<Int>): WinInfo? {
+    suspend fun checkLastMiniLotto(numbers: Set<Int>): WinInfo? {
 
         val errorWinInfo = numbers.validateTicketData("MiniLotto")
         if (errorWinInfo != null) {
@@ -65,14 +65,14 @@ object LottoApi {
         return WinInfo(
 
             winningNumbers = listOf(WinningNumbers(
-                numbers = numbers,
+                numbers = numbers.sorted(),
                 numbersHitAmount = numbersHit.toString(),
                 gameType = "MiniLotto",
             ))
         )
     }
 
-    suspend fun checkLastLotto(numbers: List<Int>, isPlus: Boolean = false): WinInfo? {
+    suspend fun checkLastLotto(numbers: Set<Int>, isPlus: Boolean = false): WinInfo? {
 
         val errorWinInfo = numbers.validateTicketData("Lotto")
         if (errorWinInfo != null) {
@@ -86,7 +86,7 @@ object LottoApi {
             val resultsPlus = draws[1].results.first().resultsJson
             val numbersHitPlus = numbers.filter { resultsPlus.contains(it) }.size
             if (numbersHitPlus >= 3) {
-                winningNumbers.add(WinningNumbers(numbers = numbers, numbersHitAmount = numbersHitPlus.toString(), gameType = "LottoPlus"))
+                winningNumbers.add(WinningNumbers(numbers = numbers.sorted(), numbersHitAmount = numbersHitPlus.toString(), gameType = "LottoPlus"))
             }
         }
 
@@ -94,7 +94,7 @@ object LottoApi {
         val numbersHit = numbers.filter { results.contains(it) }.size
 
         if (numbersHit >= 3) {
-            winningNumbers.add(WinningNumbers(numbers = numbers, numbersHitAmount = numbersHit.toString(), gameType = "Lotto"))
+            winningNumbers.add(WinningNumbers(numbers = numbers.sorted(), numbersHitAmount = numbersHit.toString(), gameType = "Lotto"))
         }
 
         if (winningNumbers.isEmpty()) {
@@ -107,23 +107,11 @@ object LottoApi {
 
     }
 
-    suspend fun checkLastEuroJackpot(numbers: List<Int>): WinInfo? {
+    suspend fun checkLastEuroJackpot(numbersFirst: Set<Int>, numbersSecond: Set<Int>): WinInfo? {
 
-        val errorWinInfo = numbers.validateJackpotData()
+        val errorWinInfo = validateJackpotData(numbersFirst, numbersSecond)
         if (errorWinInfo != null) {
             return errorWinInfo
-        }
-
-        val numbersFirst = numbers.subList(0, 5)
-        val numbersSecond = numbers.subList(5, 7)
-
-        val errorWinInfoFirst = numbersFirst.validateTicketData("EuroJackpotFirst")
-        val errorWinInfoSecond = numbersSecond.validateTicketData("EuroJackpotSecond")
-        if (errorWinInfoFirst != null) {
-            return errorWinInfoFirst
-        }
-        if (errorWinInfoSecond != null) {
-            return errorWinInfoSecond
         }
 
         val draws = service.getLastDrawsInfoPerGame("EuroJackpot")
@@ -136,7 +124,8 @@ object LottoApi {
 
         val winInfo = WinInfo(
             winningNumbers = listOf(WinningNumbers(
-                numbersFirst + numbersSecond,
+                numbers = numbersFirst.sorted(),
+                specialNumbers = numbersSecond.sorted(),
                 numbersHitAmount = "$numbersHitFirst+$numbersHitSecond",
                 gameType = "EuroJackpot"
             ))
@@ -150,13 +139,13 @@ object LottoApi {
 
     }
 
-    suspend fun checkMultipleTickets(gameType: String, vararg numbers: List<Int>): CheckResponse? {
+    suspend fun checkMultipleTickets(gameType: String, vararg numbers: Set<Int>): CheckResponse? {
 
         if (gameType !in games) {
             return null
         }
 
-        val winInfoList: MutableList<WinInfo?> = mutableListOf()
+        val winInfoList: MutableSet<WinInfo?> = mutableSetOf()
 
         when(gameType) {
             "Lotto" -> {
@@ -169,7 +158,23 @@ object LottoApi {
                 numbers.forEach { winInfoList.add(checkLastMiniLotto(it)) }
             }
             "EuroJackpot" -> {
-                numbers.forEach { winInfoList.add(checkLastEuroJackpot(it)) }
+                if (numbers.size % 2 != 0) {
+                    return null
+                }
+                val setFirst: MutableList<Set<Int>> = mutableListOf()
+                val setSecond: MutableList<Set<Int>> = mutableListOf()
+
+                for (i in 0..<numbers.size) {
+                    if (i % 2 == 0) {
+                        setFirst.add(numbers[i])
+                    } else {
+                        setSecond.add(numbers[i])
+                    }
+                }
+
+                for(i in 0..<setFirst.size) {
+                    winInfoList.add(checkLastEuroJackpot(setFirst[i], setSecond[i]))
+                }
             }
         }
 
@@ -179,7 +184,7 @@ object LottoApi {
 
     }
 
-    private fun List<Int>.validateTicketData(gameType: String): WinInfo? {
+    private fun Set<Int>.validateTicketData(gameType: String): WinInfo? {
         if (this.size != numberAmountMap[gameType]) {
             return WinInfo(
                 info = "Niepoprawna ilosc liczb"
@@ -195,16 +200,14 @@ object LottoApi {
         return null
     }
 
-    private fun List<Int>.validateJackpotData(): WinInfo? {
-        if (this.size != 7) {
+    private fun validateJackpotData(firstSet: Set<Int>, secondSet: Set<Int>): WinInfo? {
+        if (firstSet.size != 5 || secondSet.size != 2) {
             return WinInfo(
                 info = "Niepoprawna ilosc liczb"
             )
         }
-        val first: List<Int> = this.subList(0, 4)
-        val second: List<Int> = this.subList(5, 6)
 
-        if (!first.none { rangeMap["EuroJackpotFirst"]?.contains(it) != true } || !second.none { rangeMap["EuroJackpotSecond"]?.contains(it) != true }) {
+        if (!firstSet.none { rangeMap["EuroJackpotFirst"]?.contains(it) != true } || !secondSet.none { rangeMap["EuroJackpotSecond"]?.contains(it) != true }) {
             return WinInfo(
                 info = "Niepoprawny zakres liczb"
             )
@@ -226,6 +229,7 @@ data class WinInfo(
 
 data class WinningNumbers(
     val numbers: List<Int>,
+    val specialNumbers: List<Int> = listOf(),
     val numbersHitAmount: String = "",
     val gameType: String = ""
 )
