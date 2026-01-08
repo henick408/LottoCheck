@@ -2,22 +2,26 @@ package org.henick
 
 object LottoApi {
 
-    private val service = ApiInstance.createService(LottoService::class.java)
+    private var service: LottoService? = null
 
+    fun init(apiKey: String) {
+        service = ApiInstance { apiKey }.createService()
+    }
+
+    private fun requireService(): LottoService =
+        service ?: error(
+            "LottoApi is not initialized. Call LottoApi.init(apiKey) first."
+        )
 
     suspend fun getLastDraws(): List<DrawResponse>? {
-        try {
-
-            return service.getLastDrawsInfo()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return null
+        return runCatching {
+            requireService().getLastDrawsInfo()
+        }.getOrNull()
     }
 
     suspend fun getLastDrawsPerGame(gameType: String): List<DrawResponse>? {
         try {
-            return service.getLastDrawsInfoPerGame(gameType)
+            return requireService().getLastDrawsInfoPerGame(gameType)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -26,7 +30,7 @@ object LottoApi {
 
     suspend fun getDrawsByDate(drawDate: String): List<DrawResponse>? {
         try {
-            return service.getDrawsInfoByDate(drawDate)
+            return requireService().getDrawsInfoByDate(drawDate)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -35,7 +39,7 @@ object LottoApi {
 
     suspend fun getDrawsByDatePerGame(gameType: String, drawDate: String): DrawResponseByDatePerGame? {
         try {
-            return service.getDrawsInfoByDatePerGame(
+            return requireService().getDrawsInfoByDatePerGame(
                 gameType = gameType,
                 drawDate = drawDate
             )
@@ -52,7 +56,7 @@ object LottoApi {
             return errorWinInfo
         }
 
-        val draws = service.getLastDrawsInfoPerGame("MiniLotto")
+        val draws = requireService().getLastDrawsInfoPerGame("MiniLotto")
 
         val results = draws.first().results.first().resultsJson
 
@@ -79,7 +83,7 @@ object LottoApi {
             return errorWinInfo
         }
 
-        val draws = service.getLastDrawsInfoPerGame("Lotto")
+        val draws = requireService().getLastDrawsInfoPerGame("Lotto")
         val winningNumbers: MutableList<WinningNumbers> = mutableListOf()
 
         if(isPlus) {
@@ -122,7 +126,7 @@ object LottoApi {
             return errorWinInfo
         }
 
-        val draws = service.getLastDrawsInfoPerGame("EuroJackpot")
+        val draws = requireService().getLastDrawsInfoPerGame("EuroJackpot")
 
         val resultsFirst = draws.first().results.first().resultsJson
         val resultsSecond = draws.first().results.first().specialResults
@@ -186,7 +190,7 @@ object LottoApi {
     }
 
     private fun Set<Int>.validateTicketData(gameType: String): WinInfo? {
-        val game: GAME = GAME.valueOf(gameType)
+        val game: GAME = GAME.valueOf(gameType.uppercase())
         if (this.size != game.amount) {
             return WinInfo(
                 info = "Niepoprawna ilosc liczb"
