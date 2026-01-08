@@ -86,7 +86,11 @@ object LottoApi {
             val resultsPlus = draws[1].results.first().resultsJson
             val numbersHitPlus = numbers.filter { resultsPlus.contains(it) }.size
             if (numbersHitPlus >= 3) {
-                winningNumbers.add(WinningNumbers(numbers = numbers.sorted(), numbersHitAmount = numbersHitPlus.toString(), gameType = "LottoPlus"))
+                winningNumbers.add(WinningNumbers(
+                    numbers = numbers.sorted(),
+                    numbersHitAmount = numbersHitPlus.toString(),
+                    gameType = "LottoPlus"
+                ))
             }
         }
 
@@ -94,7 +98,11 @@ object LottoApi {
         val numbersHit = numbers.filter { results.contains(it) }.size
 
         if (numbersHit >= 3) {
-            winningNumbers.add(WinningNumbers(numbers = numbers.sorted(), numbersHitAmount = numbersHit.toString(), gameType = "Lotto"))
+            winningNumbers.add(WinningNumbers(
+                numbers = numbers.sorted(),
+                numbersHitAmount = numbersHit.toString(),
+                gameType = "Lotto"
+            ))
         }
 
         if (winningNumbers.isEmpty()) {
@@ -141,23 +149,25 @@ object LottoApi {
 
     suspend fun checkMultipleTickets(gameType: String, vararg numbers: Set<Int>): CheckResponse? {
 
-        if (gameType !in games) {
+        val game: String = gameType.lowercase()
+
+        if (game !in GAME.entries.map { it.name.lowercase() }) {
             return null
         }
 
         val winInfoList: MutableSet<WinInfo?> = mutableSetOf()
 
-        when(gameType) {
-            "Lotto" -> {
+        when(game) {
+            "lotto" -> {
                 numbers.forEach { winInfoList.add(checkLastLotto(it)) }
             }
-            "LottoPlus" -> {
+            "lottoplus" -> {
                 numbers.forEach { winInfoList.add(checkLastLotto(it, true)) }
             }
-            "MiniLotto" -> {
+            "minilotto" -> {
                 numbers.forEach { winInfoList.add(checkLastMiniLotto(it)) }
             }
-            "EuroJackpot" -> {
+            "eurojackpot" -> {
                 if (numbers.size % 2 != 0) {
                     return null
                 }
@@ -185,13 +195,14 @@ object LottoApi {
     }
 
     private fun Set<Int>.validateTicketData(gameType: String): WinInfo? {
-        if (this.size != numberAmountMap[gameType]) {
+        val game: GAME = GAME.valueOf(gameType)
+        if (this.size != game.amount) {
             return WinInfo(
                 info = "Niepoprawna ilosc liczb"
             )
         }
 
-        if (!this.none { rangeMap[gameType]?.contains(it) != true }) {
+        if (!this.none { !game.range.contains(it) }) {
             return WinInfo(
                 info = "Niepoprawny zakres liczb"
             )
@@ -201,13 +212,14 @@ object LottoApi {
     }
 
     private fun validateJackpotData(firstSet: Set<Int>, secondSet: Set<Int>): WinInfo? {
-        if (firstSet.size != 5 || secondSet.size != 2) {
+        val game = GAME.valueOf("EUROJACKPOT")
+        if (firstSet.size != game.amount || secondSet.size != game.specialAmount) {
             return WinInfo(
                 info = "Niepoprawna ilosc liczb"
             )
         }
 
-        if (!firstSet.none { rangeMap["EuroJackpotFirst"]?.contains(it) != true } || !secondSet.none { rangeMap["EuroJackpotSecond"]?.contains(it) != true }) {
+        if (!firstSet.none { !game.range.contains(it) } || !secondSet.none { !game.specialRange!!.contains(it) }) {
             return WinInfo(
                 info = "Niepoprawny zakres liczb"
             )
@@ -216,6 +228,17 @@ object LottoApi {
         return null
     }
 
+}
+
+private enum class GAME(
+    val range: IntRange,
+    val amount: Int,
+    val specialRange: IntRange? = null,
+    val specialAmount: Int? = null
+) {
+    LOTTO( range = 1..49, amount = 6),
+    MINILOTTO(range = 1..42, amount = 5),
+    EUROJACKPOT(range = 1..50, amount = 5, specialRange = 1..12, specialAmount = 2)
 }
 
 data class CheckResponse(
@@ -232,26 +255,4 @@ data class WinningNumbers(
     val specialNumbers: List<Int> = listOf(),
     val numbersHitAmount: String = "",
     val gameType: String = ""
-)
-
-private val games: Set<String> = setOf(
-    "Lotto", "LottoPlus", "MiniLotto", "EuroJackpot"
-)
-
-private val rangeMap: Map<String, IntRange> = mapOf(
-    "MiniLotto" to 1..42,
-    "Lotto" to 1..49,
-    "EuroJackpotFirst" to 1..50,
-    "EuroJackpotSecond" to 1..12,
-    "EkstraPensjaFirst" to 1..35,
-    "EkstraPensjaSecond" to 1..4
-)
-
-private val numberAmountMap: Map<String, Int> = mapOf(
-    "MiniLotto" to 5,
-    "Lotto" to 6,
-    "EuroJackpotFirst" to 5,
-    "EuroJackpotSecond" to 2,
-    "EkstraPensjaFirst" to 5,
-    "EkstraPensjaSecond" to 1
 )
