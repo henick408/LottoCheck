@@ -4,23 +4,24 @@ import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
-class ApiInstance {
-    companion object {
-        private val retrofitBuilder =
-            Retrofit.Builder()
-                .baseUrl("https://developers.lotto.pl/api/open/v1/lotteries/draw-results/")
-                .addConverterFactory(GsonConverterFactory.create())
+class ApiInstance(
+    apiKeyProvider: () -> String
+) {
+
+    private val httpClient = OkHttpClient.Builder()
+        .addInterceptor(AuthInterceptor(apiKeyProvider))
+        .build()
+
+    private val retrofit =
+        Retrofit.Builder()
+            .baseUrl("https://developers.lotto.pl/api/open/v1/lotteries/draw-results/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(httpClient)
+            .build()
 
 
-        private val httpClient = OkHttpClient.Builder().build()
+    fun createService(): LottoService =
+        retrofit.create(LottoService::class.java)
 
-        private val retrofit = retrofitBuilder.client(httpClient).build()
-
-
-        fun <T> createService(serviceClass: Class<T>): T {
-            return retrofit.create(serviceClass)
-        }
-
-    }
 
 }
