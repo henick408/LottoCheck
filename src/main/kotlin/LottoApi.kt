@@ -1,62 +1,43 @@
 package org.henick
 
-object LottoApi {
+class LottoApi(
+    val apiKey: String
+) {
 
-    private var service: LottoService? = null
-
-    fun init(apiKey: String) {
-        service = ApiInstance { apiKey }.createService()
-    }
+    private var service: LottoService? = ApiInstance { apiKey }.createService()
 
     private fun requireService(): LottoService =
         service ?: error(
             "LottoApi is not initialized. Call LottoApi.init(apiKey) first."
         )
 
-    suspend fun getLastDraws(): List<DrawResponse>? {
-        return runCatching {
-            requireService().getLastDrawsInfo()
-        }.getOrNull()
+    suspend fun getLastDraws(): List<DrawResponse> {
+        return requireService().getLastDrawsInfo()
     }
 
-    suspend fun getLastDrawsPerGame(gameType: String): List<DrawResponse>? {
-        try {
-            return requireService().getLastDrawsInfoPerGame(gameType)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return null
+    suspend fun getLastDrawsPerGame(gameType: Game): List<DrawResponse> {
+        return requireService().getLastDrawsInfoPerGame(gameType.gameName)
     }
 
-    suspend fun getDrawsByDate(drawDate: String): List<DrawResponse>? {
-        try {
-            return requireService().getDrawsInfoByDate(drawDate)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return null
+    suspend fun getDrawsByDate(drawDate: String): List<DrawResponse> {
+        return requireService().getDrawsInfoByDate(drawDate)
     }
 
-    suspend fun getDrawsByDatePerGame(gameType: String, drawDate: String): DrawResponseByDatePerGame? {
-        try {
-            return requireService().getDrawsInfoByDatePerGame(
-                gameType = gameType,
-                drawDate = drawDate
-            )
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return null
+    suspend fun getDrawsByDatePerGame(gameType: String, drawDate: String): DrawResponseByDatePerGame {
+        return requireService().getDrawsInfoByDatePerGame(
+            gameType = gameType,
+            drawDate = drawDate
+        )
     }
 
     suspend fun checkLastMiniLotto(numbers: Set<Int>): WinInfo? {
 
-        val errorWinInfo = numbers.validateTicketData("MiniLotto")
+        val errorWinInfo = numbers.validateTicketData(Game.MINILOTTO)
         if (errorWinInfo != null) {
             return errorWinInfo
         }
 
-        val draws = requireService().getLastDrawsInfoPerGame("MiniLotto")
+        val draws = getLastDrawsPerGame(Game.MINILOTTO)
 
         val results = draws.first().results.first().resultsJson
 
@@ -78,12 +59,13 @@ object LottoApi {
 
     suspend fun checkLastLotto(numbers: Set<Int>, isPlus: Boolean = false): WinInfo? {
 
-        val errorWinInfo = numbers.validateTicketData("Lotto")
+        val errorWinInfo = numbers.validateTicketData(Game.LOTTO)
         if (errorWinInfo != null) {
             return errorWinInfo
         }
 
-        val draws = requireService().getLastDrawsInfoPerGame("Lotto")
+        // zmień żeby impla używało lol
+        val draws = getLastDrawsPerGame(Game.LOTTO)
         val winningNumbers: MutableList<WinningNumbers> = mutableListOf()
 
         if(isPlus) {
@@ -126,7 +108,7 @@ object LottoApi {
             return errorWinInfo
         }
 
-        val draws = requireService().getLastDrawsInfoPerGame("EuroJackpot")
+        val draws = getLastDrawsPerGame(Game.EUROJACKPOT)
 
         val resultsFirst = draws.first().results.first().resultsJson
         val resultsSecond = draws.first().results.first().specialResults
@@ -151,27 +133,25 @@ object LottoApi {
 
     }
 
-    suspend fun checkMultipleTickets(gameType: String, vararg numbers: Set<Int>): CheckResponse? {
+    suspend fun checkMultipleTickets(gameType: Game, vararg numbers: Set<Int>): CheckResponse? {
 
-        val game: String = gameType.lowercase()
-
-        if (game !in GAME.entries.map { it.name.lowercase() }) {
+        if (gameType !in Game.entries) {
             return null
         }
 
         val winInfoList: MutableSet<WinInfo?> = mutableSetOf()
 
-        when(game) {
-            "lotto" -> {
+        when(gameType) {
+            Game.LOTTO -> {
                 numbers.forEach { winInfoList.add(checkLastLotto(it)) }
             }
-            "lottoplus" -> {
+            Game.LOTTOPLUS -> {
                 numbers.forEach { winInfoList.add(checkLastLotto(it, true)) }
             }
-            "minilotto" -> {
+            Game.MINILOTTO -> {
                 numbers.forEach { winInfoList.add(checkLastMiniLotto(it)) }
             }
-            "eurojackpot" -> {
+            Game.EUROJACKPOT -> {
                 if (numbers.size % 2 != 0) {
                     return null
                 }
@@ -189,8 +169,8 @@ object LottoApi {
 
     }
 
-    private fun Set<Int>.validateTicketData(gameType: String): WinInfo? {
-        val game: GAME = GAME.valueOf(gameType.uppercase())
+    private fun Set<Int>.validateTicketData(gameType: Game): WinInfo? {
+        val game: Game = gameType
         if (this.size != game.amount) {
             return WinInfo(
                 info = "Niepoprawna ilosc liczb"
@@ -207,7 +187,7 @@ object LottoApi {
     }
 
     private fun validateJackpotData(firstSet: Set<Int>, secondSet: Set<Int>): WinInfo? {
-        val game = GAME.valueOf("EUROJACKPOT")
+        val game = Game.EUROJACKPOT
         if (firstSet.size != game.amount || secondSet.size != game.specialAmount) {
             return WinInfo(
                 info = "Niepoprawna ilosc liczb"
@@ -225,15 +205,17 @@ object LottoApi {
 
 }
 
-private enum class GAME(
+enum class Game(
+    val gameName: String,
     val range: IntRange,
     val amount: Int,
     val specialRange: IntRange? = null,
     val specialAmount: Int? = null
 ) {
-    LOTTO( range = 1..49, amount = 6),
-    MINILOTTO(range = 1..42, amount = 5),
-    EUROJACKPOT(range = 1..50, amount = 5, specialRange = 1..12, specialAmount = 2)
+    LOTTO( gameName = "Lotto", range = 1..49, amount = 6),
+    LOTTOPLUS( gameName = "LottoPlus", range = 1..49, amount = 6),
+    MINILOTTO( gameName = "MiniLotto", range = 1..42, amount = 5),
+    EUROJACKPOT( gameName = "EuroJackpot", range = 1..50, amount = 5, specialRange = 1..12, specialAmount = 2)
 }
 
 data class CheckResponse(
