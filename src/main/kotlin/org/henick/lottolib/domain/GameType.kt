@@ -1,6 +1,6 @@
 package org.henick.lottolib.domain
 
-enum class Game(
+enum class GameType(
     val gameName: String,
     val range: IntRange,
     val amount: Int,

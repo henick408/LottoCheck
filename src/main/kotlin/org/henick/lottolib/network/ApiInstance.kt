@@ -14,7 +14,7 @@ internal class ApiInstance(
 
     private val retrofit =
         Retrofit.Builder()
-            .baseUrl("https://developers.lotto.pl/api/open/v1/lotteries/draw-results/")
+            .baseUrl("https://developers.lotto.pl/api/open/v1/lotteries/")
             .addConverterFactory(GsonConverterFactory.create())
             .client(httpClient)
             .build()

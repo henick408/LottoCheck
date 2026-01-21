@@ -8,20 +8,20 @@ import retrofit2.http.Query
 
 interface LottoService {
 
-    @GET("last-results")
+    @GET("draw-results/last-results")
     suspend fun getLastDrawsInfo(): Response<List<DrawResponse>>
 
-    @GET("last-results-per-game")
+    @GET("draw-results/last-results-per-game")
     suspend fun getLastDrawsInfoPerGame(
         @Query("gameType") gameType: String
     ): Response<List<DrawResponse>>
 
-    @GET("by-date?")
+    @GET("draw-results/by-date?")
     suspend fun getDrawsInfoByDate(
         @Query("drawDate") drawDate: String
     ): Response<List<DrawResponse>>
 
-    @GET("by-date-per-game?")
+    @GET("draw-results/by-date-per-game?")
     suspend fun getDrawsInfoByDatePerGame(
         @Query("gameType") gameType: String,
         @Query("drawDate") drawDate: String,

@@ -1,6 +1,6 @@
 package org.henick.lottolib.api
 
-import org.henick.lottolib.domain.Game
+import org.henick.lottolib.domain.GameType
 import org.henick.lottolib.model.CheckResponse
 import org.henick.lottolib.model.WinInfo
 import org.henick.lottolib.model.WinningNumbers
@@ -22,13 +22,19 @@ class LottoApi private constructor(
             }
             return LottoApi(lottoService)
         }
+        private val invalidSizeInfo = WinInfo(
+            info = "Niepoprawna ilosc liczb"
+        )
+        private val invalidRangeInfo = WinInfo(
+            info = "Niepoprawny zakres liczb"
+        )
     }
 
     suspend fun getLastDraws(): List<DrawResponse> {
         return service.getLastDrawsInfo().body()!!
     }
 
-    suspend fun getLastDrawsPerGame(gameType: Game): List<DrawResponse> {
+    suspend fun getLastDrawsPerGame(gameType: GameType): List<DrawResponse> {
         return service.getLastDrawsInfoPerGame(gameType.gameName).body()!!
     }
 
@@ -45,12 +51,15 @@ class LottoApi private constructor(
 
     suspend fun checkLastMiniLotto(numbers: Set<Int>): WinInfo? {
 
-        val errorWinInfo = validateTicketData(numbers, Game.MINILOTTO)
-        if (errorWinInfo != null) {
-            return errorWinInfo
+        if (!isValidTicketSize(numbers, GameType.MINILOTTO)) {
+            return invalidSizeInfo
         }
 
-        val draws = getLastDrawsPerGame(Game.MINILOTTO)
+        if (!isValidTicketRange(numbers, GameType.MINILOTTO)) {
+            return invalidRangeInfo
+        }
+
+        val draws = getLastDrawsPerGame(GameType.MINILOTTO)
 
         val results = draws.first().results.first().resultsJson
 
@@ -65,7 +74,7 @@ class LottoApi private constructor(
             winningNumbers = listOf(
                 WinningNumbers(
                     numbers = numbers.sorted(),
-                    numbersHitAmount = numbersHit.toString(),
+                    hits = numbersHit.toString(),
                     gameType = "MiniLotto",
                 ))
         )
@@ -73,12 +82,15 @@ class LottoApi private constructor(
 
     suspend fun checkLastLotto(numbers: Set<Int>, isPlus: Boolean = false): WinInfo? {
 
-        val errorWinInfo = validateTicketData(numbers, Game.LOTTO)
-        if (errorWinInfo != null) {
-            return errorWinInfo
+        if (!isValidTicketSize(numbers, GameType.LOTTO)) {
+            return invalidSizeInfo
         }
 
-        val draws = getLastDrawsPerGame(Game.LOTTO)
+        if (!isValidTicketRange(numbers, GameType.LOTTO)) {
+            return invalidRangeInfo
+        }
+
+        val draws = getLastDrawsPerGame(GameType.LOTTO)
         val winningNumbers: MutableList<WinningNumbers> = mutableListOf()
 
         if(isPlus) {
@@ -88,7 +100,7 @@ class LottoApi private constructor(
                 winningNumbers.add(
                     WinningNumbers(
                         numbers = numbers.sorted(),
-                        numbersHitAmount = numbersHitPlus.toString(),
+                        hits = numbersHitPlus.toString(),
                         gameType = "LottoPlus"
                     ))
             }
@@ -101,7 +113,7 @@ class LottoApi private constructor(
             winningNumbers.add(
                 WinningNumbers(
                     numbers = numbers.sorted(),
-                    numbersHitAmount = numbersHit.toString(),
+                    hits = numbersHit.toString(),
                     gameType = "Lotto"
                 ))
         }
@@ -118,12 +130,14 @@ class LottoApi private constructor(
 
     suspend fun checkLastEuroJackpot(numbersFirst: Set<Int>, numbersSecond: Set<Int>): WinInfo? {
 
-        val errorWinInfo = validateJackpotTicketData(numbersFirst, numbersSecond)
-        if (errorWinInfo != null) {
-            return errorWinInfo
+        if (!isValidJackpotTicketSize(numbersFirst, numbersSecond)) {
+            return invalidSizeInfo
+        }
+        if (!isValidJackpotTicketRange(numbersFirst, numbersSecond)) {
+            return invalidRangeInfo
         }
 
-        val draws = getLastDrawsPerGame(Game.EUROJACKPOT)
+        val draws = getLastDrawsPerGame(GameType.EUROJACKPOT)
 
         val resultsFirst = draws.first().results.first().resultsJson
         val resultsSecond = draws.first().results.first().specialResults
@@ -136,7 +150,7 @@ class LottoApi private constructor(
                 WinningNumbers(
                     numbers = numbersFirst.sorted(),
                     specialNumbers = numbersSecond.sorted(),
-                    numbersHitAmount = "$numbersHitFirst+$numbersHitSecond",
+                    hits = "$numbersHitFirst+$numbersHitSecond",
                     gameType = "EuroJackpot"
                 )
             )
@@ -150,25 +164,25 @@ class LottoApi private constructor(
 
     }
 
-    suspend fun checkMultipleTickets(gameType: Game, vararg numbers: Set<Int>): CheckResponse? {
+    suspend fun checkMultipleTickets(gameType: GameType, vararg numbers: Set<Int>): CheckResponse? {
 
-        if (gameType !in Game.entries) {
+        if (gameType !in GameType.entries) {
             return null
         }
 
-        val winInfoList: MutableSet<WinInfo?> = mutableSetOf()
+        val winInfoList: MutableList<WinInfo?> = mutableListOf()
 
         when(gameType) {
-            Game.LOTTO -> {
+            GameType.LOTTO -> {
                 numbers.forEach { winInfoList.add(checkLastLotto(it)) }
             }
-            Game.LOTTOPLUS -> {
+            GameType.LOTTOPLUS -> {
                 numbers.forEach { winInfoList.add(checkLastLotto(it, true)) }
             }
-            Game.MINILOTTO -> {
+            GameType.MINILOTTO -> {
                 numbers.forEach { winInfoList.add(checkLastMiniLotto(it)) }
             }
-            Game.EUROJACKPOT -> {
+            GameType.EUROJACKPOT -> {
                 if (numbers.size % 2 != 0) {
                     return null
                 }
@@ -186,39 +200,22 @@ class LottoApi private constructor(
 
     }
 
-    private fun validateTicketData(set: Set<Int>, gameType: Game): WinInfo? {
-        val game: Game = gameType
-        if (set.size != game.amount) {
-            return WinInfo(
-                info = "Niepoprawna ilosc liczb"
-            )
-        }
-
-        if (!set.none { !game.range.contains(it) }) {
-            return WinInfo(
-                info = "Niepoprawny zakres liczb"
-            )
-        }
-
-        return null
+    private fun isValidTicketSize(set: Set<Int>, gameType: GameType): Boolean {
+        return set.size != gameType.amount
     }
 
-    private fun validateJackpotTicketData(firstSet: Set<Int>, secondSet: Set<Int>): WinInfo? {
-        val game = Game.EUROJACKPOT
-        if (firstSet.size != game.amount || secondSet.size != game.specialAmount) {
-            return WinInfo(
-                info = "Niepoprawna ilosc liczb"
-            )
-        }
-
-        if (!firstSet.none { !game.range.contains(it) } || !secondSet.none { !game.specialRange!!.contains(it) }) {
-            return WinInfo(
-                info = "Niepoprawny zakres liczb"
-            )
-        }
-
-        return null
+    private fun isValidTicketRange(set: Set<Int>, gameType: GameType): Boolean {
+        return !set.none { !gameType.range.contains(it) }
     }
+
+    private fun isValidJackpotTicketSize(firstSet: Set<Int>, secondSet: Set<Int>): Boolean {
+        return firstSet.size != GameType.EUROJACKPOT.amount || secondSet.size != GameType.EUROJACKPOT.specialAmount
+    }
+
+    private fun isValidJackpotTicketRange(firstSet: Set<Int>, secondSet: Set<Int>): Boolean {
+        return !firstSet.none { !GameType.EUROJACKPOT.range.contains(it) } || !secondSet.none { !GameType.EUROJACKPOT.specialRange!!.contains(it) }
+    }
+
 
     private fun isEuroJackpotWinCondition(numbersFirst: Int, numbersSecond: Int): Boolean {
         return !(numbersFirst >= 3 || (numbersFirst == 2 && numbersSecond >= 1) || (numbersFirst == 1 && numbersSecond == 2))
