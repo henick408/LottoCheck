@@ -1,4 +1,4 @@
-package org.henick
+package org.henick.lottolib
 
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit

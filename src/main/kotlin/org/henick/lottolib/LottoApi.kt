@@ -1,33 +1,39 @@
-package org.henick
+package org.henick.lottolib
 
-class LottoApi(
-    val apiKey: String
+class LottoApi private constructor(
+    val service: LottoService
 ) {
 
-    private var service: LottoService? = ApiInstance { apiKey }.createService()
+    //private var service: LottoService? = ApiInstance { apiKey }.createService()
 
-    private fun requireService(): LottoService =
-        service ?: error(
-            "LottoApi is not initialized. Call LottoApi.init(apiKey) first."
-        )
+    companion object {
+        suspend fun init(apiKey: String): LottoApi {
+            val lottoService: LottoService = ApiInstance { apiKey }.createService()
+            val code = lottoService.getLastDrawsInfo().code()
+            if (code == 401) {
+                throw LottoInvalidTokenException("Entered token is an invalid LottoApi token")
+            }
+            return LottoApi(lottoService)
+        }
+    }
 
     suspend fun getLastDraws(): List<DrawResponse> {
-        return requireService().getLastDrawsInfo()
+        return service.getLastDrawsInfo().body()!!
     }
 
     suspend fun getLastDrawsPerGame(gameType: Game): List<DrawResponse> {
-        return requireService().getLastDrawsInfoPerGame(gameType.gameName)
+        return service.getLastDrawsInfoPerGame(gameType.gameName).body()!!
     }
 
     suspend fun getDrawsByDate(drawDate: String): List<DrawResponse> {
-        return requireService().getDrawsInfoByDate(drawDate)
+        return service.getDrawsInfoByDate(drawDate).body()!!
     }
 
     suspend fun getDrawsByDatePerGame(gameType: String, drawDate: String): DrawResponseByDatePerGame {
-        return requireService().getDrawsInfoByDatePerGame(
+        return service.getDrawsInfoByDatePerGame(
             gameType = gameType,
             drawDate = drawDate
-        )
+        ).body()!!
     }
 
     suspend fun checkLastMiniLotto(numbers: Set<Int>): WinInfo? {
@@ -103,7 +109,7 @@ class LottoApi(
 
     suspend fun checkLastEuroJackpot(numbersFirst: Set<Int>, numbersSecond: Set<Int>): WinInfo? {
 
-        val errorWinInfo = validateJackpotData(numbersFirst, numbersSecond)
+        val errorWinInfo = validateJackpotTicketData(numbersFirst, numbersSecond)
         if (errorWinInfo != null) {
             return errorWinInfo
         }
@@ -186,7 +192,7 @@ class LottoApi(
         return null
     }
 
-    private fun validateJackpotData(firstSet: Set<Int>, secondSet: Set<Int>): WinInfo? {
+    private fun validateJackpotTicketData(firstSet: Set<Int>, secondSet: Set<Int>): WinInfo? {
         val game = Game.EUROJACKPOT
         if (firstSet.size != game.amount || secondSet.size != game.specialAmount) {
             return WinInfo(

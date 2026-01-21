@@ -1,4 +1,4 @@
-package org.henick
+package org.henick.lottolib
 
 
 data class DrawResponse(
