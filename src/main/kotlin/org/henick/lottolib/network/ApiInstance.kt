@@ -1,10 +1,10 @@
-package org.henick.lottolib
+package org.henick.lottolib.network
 
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
-class ApiInstance(
+internal class ApiInstance(
     apiKeyProvider: () -> String
 ) {
 

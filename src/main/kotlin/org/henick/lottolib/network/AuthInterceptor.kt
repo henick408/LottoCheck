@@ -1,9 +1,9 @@
-package org.henick.lottolib
+package org.henick.lottolib.network
 
 import okhttp3.Interceptor
 import okhttp3.Response
 
-class AuthInterceptor(
+internal class AuthInterceptor(
     private val apiKeyProvider: () -> String
 ): Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {

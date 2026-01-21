@@ -1,5 +1,7 @@
-package org.henick.lottolib
+package org.henick.lottolib.network
 
+import org.henick.lottolib.network.dto.DrawResponse
+import org.henick.lottolib.network.dto.DrawResponseByDatePerGame
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Query
