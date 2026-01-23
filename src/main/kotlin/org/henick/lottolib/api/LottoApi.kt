@@ -201,19 +201,19 @@ class LottoApi private constructor(
     }
 
     private fun isValidTicketSize(set: Set<Int>, gameType: GameType): Boolean {
-        return set.size != gameType.amount
+        return set.size == gameType.amount
     }
 
     private fun isValidTicketRange(set: Set<Int>, gameType: GameType): Boolean {
-        return !set.none { !gameType.range.contains(it) }
+        return set.all { it in gameType.range }
     }
 
     private fun isValidJackpotTicketSize(firstSet: Set<Int>, secondSet: Set<Int>): Boolean {
-        return firstSet.size != GameType.EUROJACKPOT.amount || secondSet.size != GameType.EUROJACKPOT.specialAmount
+        return firstSet.size == GameType.EUROJACKPOT.amount && secondSet.size == GameType.EUROJACKPOT.specialAmount
     }
 
     private fun isValidJackpotTicketRange(firstSet: Set<Int>, secondSet: Set<Int>): Boolean {
-        return !firstSet.none { !GameType.EUROJACKPOT.range.contains(it) } || !secondSet.none { !GameType.EUROJACKPOT.specialRange!!.contains(it) }
+        return firstSet.all { GameType.EUROJACKPOT.range.contains(it) } && secondSet.all { GameType.EUROJACKPOT.specialRange!!.contains(it) }
     }
 
 
