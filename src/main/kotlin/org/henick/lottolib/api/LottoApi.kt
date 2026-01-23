@@ -1,6 +1,8 @@
 package org.henick.lottolib.api
 
 import org.henick.lottolib.domain.GameType
+import org.henick.lottolib.domain.Ticket
+import org.henick.lottolib.domain.TicketNumbers
 import org.henick.lottolib.model.CheckResponse
 import org.henick.lottolib.model.WinInfo
 import org.henick.lottolib.model.WinningNumbers
@@ -8,6 +10,7 @@ import org.henick.lottolib.network.ApiInstance
 import org.henick.lottolib.network.LottoService
 import org.henick.lottolib.network.dto.DrawResponse
 import org.henick.lottolib.network.dto.DrawResponseByDatePerGame
+import java.time.LocalDate
 
 class LottoApi private constructor(
     val service: LottoService
@@ -38,15 +41,64 @@ class LottoApi private constructor(
         return service.getLastDrawsInfoPerGame(gameType.gameName).body()!!
     }
 
-    suspend fun getDrawsByDate(drawDate: String): List<DrawResponse> {
-        return service.getDrawsInfoByDate(drawDate).body()!!
+    suspend fun getDrawsByDate(drawDate: LocalDate): List<DrawResponse> {
+        return service.getDrawsInfoByDate(drawDate.toString()).body()!!
     }
 
-    suspend fun getDrawsByDatePerGame(gameType: String, drawDate: String): DrawResponseByDatePerGame {
-        return service.getDrawsInfoByDatePerGame(
-            gameType = gameType,
-            drawDate = drawDate
-        ).body()!!
+    suspend fun getDrawsByDatePerGame(gameType: GameType, drawDate: LocalDate): List<DrawResponse> {
+        return service.getDrawsInfoByDate(drawDate.toString()).body()!!.filter { it.gameType == gameType.gameName }
+    }
+
+    suspend fun checkTicket(ticket: Ticket): CheckResponse {
+        if (!ticket.ticketNumbers.all { it.gameType == ticket.gameType}) {
+            TODO("GameType poszczegolnych ticketNumbers jest inny niz gameType Ticketa")
+        }
+        val draws: List<DrawResponse> = if (ticket.gameType == GameType.LOTTOPLUS) {
+            getDrawsByDatePerGame(gameType = GameType.LOTTO, drawDate = ticket.drawDate)
+        } else {
+            getDrawsByDatePerGame(gameType = ticket.gameType, drawDate = ticket.drawDate)
+        }
+        if (draws.isEmpty()) {
+            TODO("Nie ma wynikow losowania z danego dnia")
+        }
+        val winInfoList: MutableList<WinInfo?> = mutableListOf()
+
+        ticket.ticketNumbers.forEach { winInfoList.add(it.checkTicketNumbers(draws)) }
+
+        return CheckResponse(
+            winInfoJson = winInfoList.filterNotNull()
+        )
+    }
+
+    private fun TicketNumbers.checkTicketNumbers( draws: List<DrawResponse>): WinInfo? {
+        if (!this.isValidSize()) {
+            return invalidSizeInfo
+        }
+        if (!this.isValidRange()) {
+            return invalidRangeInfo
+        }
+
+        // JAK DOTAD NIE DZIAŁA TO DLA LOTTOPLUS I EUROJACKPOT
+
+        val results = draws.first().results.first().resultsJson
+
+        val hits = this.numbers.filter { results.contains(it) }.size
+
+        if (hits < 3) {
+            return null
+            //TODO("Jak zwracac informację o nietrafieniu? (null czy WinInfo z info = \"nie trafiles\"?")
+        }
+
+        return WinInfo(
+            winningNumbers = listOf(
+                WinningNumbers(
+                    numbers = this.numbers.sorted(),
+                    hits = hits.toString(),
+                    gameType = this.gameType.gameName,
+                )
+            )
+        )
+
     }
 
     suspend fun checkLastMiniLotto(numbers: Set<Int>): WinInfo? {

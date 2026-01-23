@@ -6,14 +6,14 @@ class TicketNumbers(
     val gameType: GameType,
     val specialNumbers: Set<Int>? = null
 ) {
-    private fun isValidSize(): Boolean {
+    internal fun isValidSize(): Boolean {
         if (specialNumbers == null) {
-            return this.numbers.size != this.gameType.amount
+            return this.numbers.size == this.gameType.amount
         }
-        return numbers.size != gameType.amount || specialNumbers.size != gameType.specialAmount
+        return numbers.size == gameType.amount && specialNumbers.size == gameType.specialAmount
     }
 
-    private fun isValidRange(): Boolean {
+    internal fun isValidRange(): Boolean {
         if (specialNumbers == null) {
             return numbers.all { it in gameType.range }
         }
