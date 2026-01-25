@@ -20,7 +20,7 @@ class LottoApi private constructor(
             val lottoService: LottoService = ApiInstance { apiKey }.createService()
             val code = lottoService.getLastDrawsInfo().code()
             if (code == 401) {
-                throw LottoInvalidApiTokenException("Entered token is an invalid LottoApi token")
+                throw LottoInvalidApiTokenException("Wprowadzony token jest niepoprawnym tokenem LottoApi")
             }
             return LottoApi(lottoService)
         }
@@ -52,6 +52,9 @@ class LottoApi private constructor(
     }
 
     suspend fun checkTicket(ticket: Ticket): CheckResponse {
+        if (ticket.ticketNumbers.isEmpty()) {
+            throw LottoInvalidTicketException("Ticket musi zawierac elementy TicketNumbers")
+        }
         val draws: List<DrawResponse> = if (ticket.gameType.nonSpecialGame != null) {
             getDrawsByDatePerGame(gameType = ticket.gameType.nonSpecialGame, drawDate = ticket.drawDate)
         } else {
