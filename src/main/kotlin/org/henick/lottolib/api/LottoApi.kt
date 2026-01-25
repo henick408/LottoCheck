@@ -9,7 +9,6 @@ import org.henick.lottolib.model.WinningNumbers
 import org.henick.lottolib.network.ApiInstance
 import org.henick.lottolib.network.LottoService
 import org.henick.lottolib.network.dto.DrawResponse
-import org.henick.lottolib.network.dto.DrawResponseByDatePerGame
 import java.time.LocalDate
 
 class LottoApi private constructor(
@@ -31,6 +30,9 @@ class LottoApi private constructor(
         private val invalidRangeInfo = WinInfo(
             info = "Niepoprawny zakres liczb"
         )
+        private val noHitsWinInfo = WinInfo(
+            info = "Nie trafiono nic"
+        )
     }
 
     suspend fun getLastDraws(): List<DrawResponse> {
@@ -50,27 +52,79 @@ class LottoApi private constructor(
     }
 
     suspend fun checkTicket(ticket: Ticket): CheckResponse {
-        if (!ticket.ticketNumbers.all { it.gameType == ticket.gameType}) {
-            TODO("GameType poszczegolnych ticketNumbers jest inny niz gameType Ticketa")
-        }
         val draws: List<DrawResponse> = if (ticket.gameType == GameType.LOTTOPLUS) {
             getDrawsByDatePerGame(gameType = GameType.LOTTO, drawDate = ticket.drawDate)
         } else {
             getDrawsByDatePerGame(gameType = ticket.gameType, drawDate = ticket.drawDate)
         }
-        if (draws.isEmpty()) {
-            TODO("Nie ma wynikow losowania z danego dnia")
+
+        if (!ticket.ticketNumbers.all { it.gameType == ticket.gameType}) {
+            throw LottoInvalidTicketException("GameType poszczegolnych ticketNumbers jest inny niz gameType Ticketa")
         }
-        val winInfoList: MutableList<WinInfo?> = mutableListOf()
+        if (draws.isEmpty()) {
+            return CheckResponse(
+                info = "Nie ma wynikow losowania z danego dnia")
+        }
+        val winInfoList: MutableList<WinInfo> = mutableListOf()
 
         ticket.ticketNumbers.forEach { winInfoList.add(it.checkTicketNumbers(draws)) }
 
         return CheckResponse(
-            winInfoJson = winInfoList.filterNotNull()
+            drawSystemId = draws.getDrawSystemId(),
+            results = draws.getResults(),
+            specialResults = draws.getSpecialResults(),
+            winInfoJson = winInfoList
         )
     }
 
-    private fun TicketNumbers.checkTicketNumbers( draws: List<DrawResponse>): WinInfo? {
+    private fun List<DrawResponse>.getResults(): List<Int> {
+        return this.first().results.first().resultsJson.sorted()
+    }
+
+    private fun List<DrawResponse>.getSpecialResults(): List<Int>? {
+        if (this.first().results.first().specialResults.isEmpty() && this.first().results.size == 1) {
+            return null
+        }
+
+        if (this.first().results.first().specialResults.isEmpty()) {
+            // To znaczy LottoPlus
+            return this.first().results[1].resultsJson.sorted()
+        }
+        // To znaczy EuroJackpot
+        return this.first().results.first().specialResults.sorted()
+    }
+
+    private fun List<DrawResponse>.getDrawSystemId(): Int {
+        return this.first().drawSystemId
+    }
+
+    private fun TicketNumbers.getWinInfoFromResults(results: List<Int>, specialResults: List<Int>? = null): WinInfo {
+        if (this.gameType == GameType.EUROJACKPOT) {
+            val hits = this.numbers.filter { results.contains(it) }.size
+            val specialHits = this.specialNumbers?.filter { specialResults!!.contains(it) }?.size
+
+            if (!isEuroJackpotWinCondition(hits, specialHits!!)) {
+                return noHitsWinInfo
+            }
+
+            val winInfo = WinInfo(
+                winningNumbers = listOf(
+                    WinningNumbers(
+                        numbers = this.numbers.sorted(),
+                        specialNumbers = this.specialNumbers.sorted(),
+                        hits = "$hits+$specialHits",
+                        gameType = "EuroJackpot"
+                    )
+                )
+            )
+
+            return winInfo
+        }
+        val winningNumbers: MutableList<WinningNumbers> = mutableListOf()
+        TODO()
+    }
+
+    private fun TicketNumbers.checkTicketNumbers(draws: List<DrawResponse>): WinInfo {
         if (!this.isValidSize()) {
             return invalidSizeInfo
         }
@@ -80,13 +134,15 @@ class LottoApi private constructor(
 
         // JAK DOTAD NIE DZIAŁA TO DLA LOTTOPLUS I EUROJACKPOT
 
-        val results = draws.first().results.first().resultsJson
+        val results = draws.getResults()
+        val specialResults = draws.getSpecialResults()
+
+        this.getWinInfoFromResults(results, specialResults)
 
         val hits = this.numbers.filter { results.contains(it) }.size
 
         if (hits < 3) {
-            return null
-            //TODO("Jak zwracac informację o nietrafieniu? (null czy WinInfo z info = \"nie trafiles\"?")
+            return noHitsWinInfo
         }
 
         return WinInfo(
@@ -100,6 +156,7 @@ class LottoApi private constructor(
         )
 
     }
+
 
     suspend fun checkLastMiniLotto(numbers: Set<Int>): WinInfo? {
 
@@ -197,6 +254,10 @@ class LottoApi private constructor(
         val numbersHitFirst = numbersFirst.filter { resultsFirst.contains(it) }.size
         val numbersHitSecond = numbersSecond.filter { resultsSecond.contains(it) }.size
 
+        if (!isEuroJackpotWinCondition(numbersHitFirst, numbersHitSecond)) {
+            return null
+        }
+
         val winInfo = WinInfo(
             winningNumbers = listOf(
                 WinningNumbers(
@@ -208,14 +269,11 @@ class LottoApi private constructor(
             )
         )
 
-        if (isEuroJackpotWinCondition(numbersHitFirst, numbersHitSecond)) {
-            return null
-        }
-
         return winInfo
 
     }
 
+    @Deprecated("Bezuzyteczne w obecnym standardzie, nalezy uzywac checkTicket")
     suspend fun checkMultipleTickets(gameType: GameType, vararg numbers: Set<Int>): CheckResponse? {
 
         if (gameType !in GameType.entries) {
@@ -247,6 +305,9 @@ class LottoApi private constructor(
         }
 
         return CheckResponse(
+            drawSystemId = 0,
+            results = listOf(),
+            specialResults = null,
             winInfoJson = winInfoList.filterNotNull()
         )
 
@@ -270,7 +331,7 @@ class LottoApi private constructor(
 
 
     private fun isEuroJackpotWinCondition(numbersFirst: Int, numbersSecond: Int): Boolean {
-        return !(numbersFirst >= 3 || (numbersFirst == 2 && numbersSecond >= 1) || (numbersFirst == 1 && numbersSecond == 2))
+        return (numbersFirst >= 3 || (numbersFirst == 2 && numbersSecond >= 1) || (numbersFirst == 1 && numbersSecond == 2))
     }
 
 }

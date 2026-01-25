@@ -1,3 +1,3 @@
 package org.henick.lottolib.api
 
-class LottoInvalidApiTokenException(message: String) : RuntimeException(message)
+class LottoInvalidApiTokenException(message: String) : LottoException(message)
