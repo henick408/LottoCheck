@@ -44,5 +44,5 @@ bin/
 ### Mac OS ###
 .DS_Store
 
-### properties ###
-src/main/resources/apikey.properties
+### idea ###
+.idea/

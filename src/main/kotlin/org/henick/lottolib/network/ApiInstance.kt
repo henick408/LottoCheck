@@ -1,10 +1,10 @@
-package org.henick
+package org.henick.lottolib.network
 
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
-class ApiInstance(
+internal class ApiInstance(
     apiKeyProvider: () -> String
 ) {
 
@@ -14,7 +14,7 @@ class ApiInstance(
 
     private val retrofit =
         Retrofit.Builder()
-            .baseUrl("https://developers.lotto.pl/api/open/v1/lotteries/draw-results/")
+            .baseUrl("https://developers.lotto.pl/api/open/v1/lotteries/")
             .addConverterFactory(GsonConverterFactory.create())
             .client(httpClient)
             .build()
