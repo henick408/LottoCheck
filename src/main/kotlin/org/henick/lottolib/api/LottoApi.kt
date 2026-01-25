@@ -52,8 +52,8 @@ class LottoApi private constructor(
     }
 
     suspend fun checkTicket(ticket: Ticket): CheckResponse {
-        val draws: List<DrawResponse> = if (ticket.gameType == GameType.LOTTOPLUS) {
-            getDrawsByDatePerGame(gameType = GameType.LOTTO, drawDate = ticket.drawDate)
+        val draws: List<DrawResponse> = if (ticket.gameType.nonSpecialGame != null) {
+            getDrawsByDatePerGame(gameType = ticket.gameType.nonSpecialGame, drawDate = ticket.drawDate)
         } else {
             getDrawsByDatePerGame(gameType = ticket.gameType, drawDate = ticket.drawDate)
         }
@@ -69,12 +69,95 @@ class LottoApi private constructor(
 
         ticket.ticketNumbers.forEach { winInfoList.add(it.checkTicketNumbers(draws)) }
 
+        var specialResults: List<Int>? = draws.getSpecialResults()
+
+        if (specialResults?.size == draws.getResults().size) {
+            if(ticket.gameType.nonSpecialGame == null) {
+                specialResults = null
+            }
+        }
+
         return CheckResponse(
             drawSystemId = draws.getDrawSystemId(),
             results = draws.getResults(),
-            specialResults = draws.getSpecialResults(),
+            specialResults = specialResults,
             winInfoJson = winInfoList
         )
+    }
+
+    private fun TicketNumbers.getWinInfoFromResults(results: List<Int>, specialResults: List<Int>?): WinInfo {
+        val winningNumbers: MutableList<WinningNumbers> = mutableListOf()
+        val hits = this.numbers.filter { results.contains(it) }.size
+        var specialHits: Int?
+
+        if (this.specialNumbers != null && specialResults != null) {
+            specialHits = this.specialNumbers.filter { specialResults.contains(it) }.size
+            if(!(hits >= 3 || (hits == 2 && specialHits >= 1) || (hits == 1 && specialHits == 2))) {
+                return noHitsWinInfo
+            }
+            return WinInfo(
+                winningNumbers = listOf(
+                    WinningNumbers(
+                        numbers = this.numbers.sorted(),
+                        specialNumbers = this.specialNumbers.sorted(),
+                        hits = "$hits+$specialHits",
+                        gameType = this.gameType.gameName
+                    )
+                )
+            )
+        }
+
+        if (specialResults != null) {
+            specialHits = this.numbers.filter { specialResults.contains(it) }.size
+            if (specialHits >= 3) {
+                winningNumbers.add(
+                    WinningNumbers(
+                        numbers = this.numbers.sorted(),
+                        hits = specialHits.toString(),
+                        gameType = this.gameType.gameName
+                    )
+                )
+            }
+        }
+
+        if (hits >= 3) {
+            val gameType = this.gameType.nonSpecialGame ?: this.gameType
+            winningNumbers.add(
+                WinningNumbers(
+                    numbers = this.numbers.sorted(),
+                    hits = hits.toString(),
+                    gameType = gameType.gameName
+                )
+            )
+        }
+
+        if (winningNumbers.isEmpty()) {
+            return noHitsWinInfo
+        }
+
+        return WinInfo(
+            winningNumbers = winningNumbers.sortedBy { it.gameType }
+        )
+    }
+
+    private fun TicketNumbers.checkTicketNumbers(draws: List<DrawResponse>): WinInfo {
+        if (!this.isValidSize()) {
+            return invalidSizeInfo
+        }
+        if (!this.isValidRange()) {
+            return invalidRangeInfo
+        }
+
+        val results: List<Int> = draws.getResults()
+        var specialResults: List<Int>? = draws.getSpecialResults()
+
+        if (specialResults?.size == draws.getResults().size) {
+            if(this.gameType.nonSpecialGame == null) {
+                specialResults = null
+            }
+        }
+
+        return this.getWinInfoFromResults(results, specialResults)
     }
 
     private fun List<DrawResponse>.getResults(): List<Int> {
@@ -87,10 +170,9 @@ class LottoApi private constructor(
         }
 
         if (this.first().results.first().specialResults.isEmpty()) {
-            // To znaczy LottoPlus
             return this.first().results[1].resultsJson.sorted()
         }
-        // To znaczy EuroJackpot
+
         return this.first().results.first().specialResults.sorted()
     }
 
@@ -98,66 +180,8 @@ class LottoApi private constructor(
         return this.first().drawSystemId
     }
 
-    private fun TicketNumbers.getWinInfoFromResults(results: List<Int>, specialResults: List<Int>? = null): WinInfo {
-        if (this.gameType == GameType.EUROJACKPOT) {
-            val hits = this.numbers.filter { results.contains(it) }.size
-            val specialHits = this.specialNumbers?.filter { specialResults!!.contains(it) }?.size
 
-            if (!isEuroJackpotWinCondition(hits, specialHits!!)) {
-                return noHitsWinInfo
-            }
-
-            val winInfo = WinInfo(
-                winningNumbers = listOf(
-                    WinningNumbers(
-                        numbers = this.numbers.sorted(),
-                        specialNumbers = this.specialNumbers.sorted(),
-                        hits = "$hits+$specialHits",
-                        gameType = "EuroJackpot"
-                    )
-                )
-            )
-
-            return winInfo
-        }
-        val winningNumbers: MutableList<WinningNumbers> = mutableListOf()
-        TODO()
-    }
-
-    private fun TicketNumbers.checkTicketNumbers(draws: List<DrawResponse>): WinInfo {
-        if (!this.isValidSize()) {
-            return invalidSizeInfo
-        }
-        if (!this.isValidRange()) {
-            return invalidRangeInfo
-        }
-
-        // JAK DOTAD NIE DZIAŁA TO DLA LOTTOPLUS I EUROJACKPOT
-
-        val results = draws.getResults()
-        val specialResults = draws.getSpecialResults()
-
-        this.getWinInfoFromResults(results, specialResults)
-
-        val hits = this.numbers.filter { results.contains(it) }.size
-
-        if (hits < 3) {
-            return noHitsWinInfo
-        }
-
-        return WinInfo(
-            winningNumbers = listOf(
-                WinningNumbers(
-                    numbers = this.numbers.sorted(),
-                    hits = hits.toString(),
-                    gameType = this.gameType.gameName,
-                )
-            )
-        )
-
-    }
-
-
+    @Deprecated("Nalezy zywac metod klasy TicketNumbers")
     suspend fun checkLastMiniLotto(numbers: Set<Int>): WinInfo? {
 
         if (!isValidTicketSize(numbers, GameType.MINILOTTO)) {
@@ -189,6 +213,7 @@ class LottoApi private constructor(
         )
     }
 
+    @Deprecated("Nalezy zywac metod klasy TicketNumbers")
     suspend fun checkLastLotto(numbers: Set<Int>, isPlus: Boolean = false): WinInfo? {
 
         if (!isValidTicketSize(numbers, GameType.LOTTO)) {
@@ -237,6 +262,7 @@ class LottoApi private constructor(
 
     }
 
+    @Deprecated("Nalezy zywac metod klasy TicketNumbers")
     suspend fun checkLastEuroJackpot(numbersFirst: Set<Int>, numbersSecond: Set<Int>): WinInfo? {
 
         if (!isValidJackpotTicketSize(numbersFirst, numbersSecond)) {
@@ -273,7 +299,7 @@ class LottoApi private constructor(
 
     }
 
-    @Deprecated("Bezuzyteczne w obecnym standardzie, nalezy uzywac checkTicket")
+    @Deprecated("Nalezy zywac metod klasy TicketNumbers")
     suspend fun checkMultipleTickets(gameType: GameType, vararg numbers: Set<Int>): CheckResponse? {
 
         if (gameType !in GameType.entries) {
@@ -313,23 +339,27 @@ class LottoApi private constructor(
 
     }
 
+    @Deprecated("Nalezy zywac metod klasy TicketNumbers")
     private fun isValidTicketSize(set: Set<Int>, gameType: GameType): Boolean {
         return set.size == gameType.amount
     }
 
+    @Deprecated("Nalezy zywac metod klasy TicketNumbers")
     private fun isValidTicketRange(set: Set<Int>, gameType: GameType): Boolean {
         return set.all { it in gameType.range }
     }
 
+    @Deprecated("Nalezy zywac metod klasy TicketNumbers")
     private fun isValidJackpotTicketSize(firstSet: Set<Int>, secondSet: Set<Int>): Boolean {
         return firstSet.size == GameType.EUROJACKPOT.amount && secondSet.size == GameType.EUROJACKPOT.specialAmount
     }
 
+    @Deprecated("Nalezy zywac metod klasy TicketNumbers")
     private fun isValidJackpotTicketRange(firstSet: Set<Int>, secondSet: Set<Int>): Boolean {
         return firstSet.all { GameType.EUROJACKPOT.range.contains(it) } && secondSet.all { GameType.EUROJACKPOT.specialRange!!.contains(it) }
     }
 
-
+    @Deprecated("Nalezy zywac metod klasy TicketNumbers")
     private fun isEuroJackpotWinCondition(numbersFirst: Int, numbersSecond: Int): Boolean {
         return (numbersFirst >= 3 || (numbersFirst == 2 && numbersSecond >= 1) || (numbersFirst == 1 && numbersSecond == 2))
     }

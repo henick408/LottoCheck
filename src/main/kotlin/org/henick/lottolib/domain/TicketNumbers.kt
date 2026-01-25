@@ -1,9 +1,8 @@
 package org.henick.lottolib.domain
 
-// rząd liczb na karteczce
 class TicketNumbers(
-    val numbers: Set<Int>,
     val gameType: GameType,
+    val numbers: Set<Int>,
     val specialNumbers: Set<Int>? = null
 ) {
     internal fun isValidSize(): Boolean {
