@@ -33,6 +33,9 @@ class LottoApi private constructor(
         private val noHitsWinInfo = WinInfo(
             info = "Nie trafiono nic"
         )
+        private val specialsNeededInfo = WinInfo(
+            info = "Ta gra wymaga dwoch zestawow liczb"
+        )
     }
 
     suspend fun getLastDraws(): List<DrawResponse> {
@@ -144,6 +147,9 @@ class LottoApi private constructor(
     }
 
     private fun TicketNumbers.checkTicketNumbers(draws: List<DrawResponse>): WinInfo {
+        if (this.specialNumbers == null && (this.gameType.specialRange != null || this.gameType.specialAmount != null)) {
+            return specialsNeededInfo
+        }
         if (!this.isValidSize()) {
             return invalidSizeInfo
         }
