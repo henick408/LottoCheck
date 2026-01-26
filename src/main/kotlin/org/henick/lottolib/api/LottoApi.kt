@@ -69,6 +69,7 @@ class LottoApi private constructor(
         }
         if (draws.isEmpty()) {
             return CheckResponse(
+                gameType = ticket.gameType,
                 info = "Nie ma wynikow losowania z danego dnia")
         }
         val winInfoList: MutableList<WinInfo> = mutableListOf()
@@ -85,6 +86,7 @@ class LottoApi private constructor(
 
         return CheckResponse(
             drawSystemId = draws.getDrawSystemId(),
+            gameType = ticket.gameType,
             results = draws.getResults(),
             specialResults = specialResults,
             winInfoJson = winInfoList
@@ -106,8 +108,9 @@ class LottoApi private constructor(
                     WinningNumbers(
                         numbers = this.numbers.sorted(),
                         specialNumbers = this.specialNumbers.sorted(),
-                        hits = "$hits+$specialHits",
-                        gameType = this.gameType.gameName
+                        hits = hits,
+                        specialHits = specialHits,
+                        gameType = this.gameType
                     )
                 )
             )
@@ -119,8 +122,8 @@ class LottoApi private constructor(
                 winningNumbers.add(
                     WinningNumbers(
                         numbers = this.numbers.sorted(),
-                        hits = specialHits.toString(),
-                        gameType = this.gameType.gameName
+                        hits = specialHits,
+                        gameType = this.gameType
                     )
                 )
             }
@@ -131,8 +134,8 @@ class LottoApi private constructor(
             winningNumbers.add(
                 WinningNumbers(
                     numbers = this.numbers.sorted(),
-                    hits = hits.toString(),
-                    gameType = gameType.gameName
+                    hits = hits,
+                    gameType = gameType
                 )
             )
         }
