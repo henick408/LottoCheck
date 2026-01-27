@@ -1,5 +1,6 @@
 package org.henick.lottolib.api
 
+import org.henick.lottolib.domain.EuroJackpotPrize
 import org.henick.lottolib.domain.GameType
 import org.henick.lottolib.domain.Ticket
 import org.henick.lottolib.domain.TicketNumbers
@@ -105,17 +106,20 @@ class LottoApi private constructor(
         )
     }
 
-    private suspend fun TicketNumbers.getPrizeInfo(drawSystemId: Int, hits: Int, isSpecial: Boolean = false): Double {
+    private suspend fun TicketNumbers.getPrizeInfo(drawSystemId: Int, hits: Int, specialHits: Int? = null, isSpecial: Boolean = false): Double {
         val prizesMap: Map<String, PrizeDto>
-        val prizeElement: Int
+        val prizeElement: Int?
         val prizeValue: Double
 
-        if (this.gameType == GameType.EUROJACKPOT) {
-            return 0.0
+        if (specialHits != null) {
+            prizesMap = getPrizesEuroJackpot(drawSystemId).first().prizes
+            prizeElement = EuroJackpotPrize[hits, specialHits]
+            prizeValue = prizesMap[prizeElement.toString()]?.prizeValue ?: return 0.0
+            return prizeValue
         }
 
         prizesMap = if(this.gameType.nonSpecialGame != null && !isSpecial) {
-            getPrizesPerGame(this.gameType.nonSpecialGame, drawSystemId).first().prizes
+            getPrizesPerGame(this.gameType, drawSystemId).last().prizes
         } else {
             getPrizesPerGame(this.gameType, drawSystemId).first().prizes
         }
@@ -149,8 +153,8 @@ class LottoApi private constructor(
                         numbers = this.numbers.sorted(),
                         specialNumbers = this.specialNumbers.sorted(),
                         hits = hits,
-                        prize = getPrizeInfo(drawSystemId, hits),
                         specialHits = specialHits,
+                        prize = getPrizeInfo(drawSystemId = drawSystemId, hits = hits, specialHits = specialHits),
                         gameType = this.gameType
                     )
                 )
@@ -164,7 +168,7 @@ class LottoApi private constructor(
                     WinningNumbers(
                         numbers = this.numbers.sorted(),
                         hits = specialHits,
-                        prize = getPrizeInfo(drawSystemId, specialHits, true),
+                        prize = getPrizeInfo(drawSystemId = drawSystemId, hits = specialHits, isSpecial = true),
                         gameType = this.gameType
                     )
                 )
