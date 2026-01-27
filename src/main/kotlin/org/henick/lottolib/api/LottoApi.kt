@@ -1,5 +1,6 @@
 package org.henick.lottolib.api
 
+import org.henick.lottolib.domain.EuroJackpotPrize
 import org.henick.lottolib.domain.GameType
 import org.henick.lottolib.domain.Ticket
 import org.henick.lottolib.domain.TicketNumbers
@@ -8,7 +9,10 @@ import org.henick.lottolib.model.WinInfo
 import org.henick.lottolib.model.WinningNumbers
 import org.henick.lottolib.network.ApiInstance
 import org.henick.lottolib.network.LottoService
-import org.henick.lottolib.network.dto.DrawResponse
+import org.henick.lottolib.network.dto.prizes.PrizeDto
+import org.henick.lottolib.network.dto.prizes.PrizeEuroJackpotResponse
+import org.henick.lottolib.network.dto.prizes.PrizeResponse
+import org.henick.lottolib.network.dto.results.DrawResponse
 import java.time.LocalDate
 
 class LottoApi private constructor(
@@ -38,26 +42,35 @@ class LottoApi private constructor(
         )
     }
 
-    suspend fun getLastDraws(): List<DrawResponse> {
+    internal suspend fun getLastDraws(): List<DrawResponse> {
         return service.getLastDrawsInfo().body()!!
     }
 
-    suspend fun getLastDrawsPerGame(gameType: GameType): List<DrawResponse> {
+    internal suspend fun getLastDrawsPerGame(gameType: GameType): List<DrawResponse> {
         return service.getLastDrawsInfoPerGame(gameType.gameName).body()!!
     }
 
-    suspend fun getDrawsByDate(drawDate: LocalDate): List<DrawResponse> {
+    internal suspend fun getDrawsByDate(drawDate: LocalDate): List<DrawResponse> {
         return service.getDrawsInfoByDate(drawDate.toString()).body()!!
     }
 
-    suspend fun getDrawsByDatePerGame(gameType: GameType, drawDate: LocalDate): List<DrawResponse> {
+    internal suspend fun getDrawsByDatePerGame(gameType: GameType, drawDate: LocalDate): List<DrawResponse> {
         return service.getDrawsInfoByDate(drawDate.toString()).body()!!.filter { it.gameType == gameType.gameName }
+    }
+
+    internal suspend fun getPrizesPerGame(gameType: GameType, drawSystemId: Int): List<PrizeResponse> {
+        return service.getPrizesInfoByGame(gameType.gameName, drawSystemId).body()!!.filterNot { it.gameType == "SuperSzansa" }
+    }
+
+    internal suspend fun getPrizesEuroJackpot(drawSystemId: Int): List<PrizeEuroJackpotResponse> {
+        return service.getPrizesInfoEuroJackpot(drawSystemId).body()!!
     }
 
     suspend fun checkTicket(ticket: Ticket): CheckResponse {
         if (ticket.ticketNumbers.isEmpty()) {
             throw LottoInvalidTicketException("Ticket musi zawierac elementy TicketNumbers")
         }
+
         val draws: List<DrawResponse> = if (ticket.gameType.nonSpecialGame != null) {
             getDrawsByDatePerGame(gameType = ticket.gameType.nonSpecialGame, drawDate = ticket.drawDate)
         } else {
@@ -69,6 +82,7 @@ class LottoApi private constructor(
         }
         if (draws.isEmpty()) {
             return CheckResponse(
+                gameType = ticket.gameType,
                 info = "Nie ma wynikow losowania z danego dnia")
         }
         val winInfoList: MutableList<WinInfo> = mutableListOf()
@@ -85,13 +99,45 @@ class LottoApi private constructor(
 
         return CheckResponse(
             drawSystemId = draws.getDrawSystemId(),
+            gameType = ticket.gameType,
             results = draws.getResults(),
             specialResults = specialResults,
             winInfoJson = winInfoList
         )
     }
 
-    private fun TicketNumbers.getWinInfoFromResults(results: List<Int>, specialResults: List<Int>?): WinInfo {
+    private suspend fun TicketNumbers.getPrizeInfo(drawSystemId: Int, hits: Int, specialHits: Int? = null, isSpecial: Boolean = false): Double {
+        val prizesMap: Map<String, PrizeDto>
+        val prizeElement: Int?
+        val prizeValue: Double
+
+        if (specialHits != null) {
+            prizesMap = getPrizesEuroJackpot(drawSystemId).first().prizes
+            prizeElement = EuroJackpotPrize[hits, specialHits]
+            prizeValue = prizesMap[prizeElement.toString()]?.prizeValue ?: return 0.0
+            return prizeValue
+        }
+
+        prizesMap = if(this.gameType.nonSpecialGame != null && !isSpecial) {
+            getPrizesPerGame(this.gameType, drawSystemId).last().prizes
+        } else {
+            getPrizesPerGame(this.gameType, drawSystemId).first().prizes
+        }
+        prizeElement = this.gameType.amount - hits + 1
+        prizeValue = prizesMap[prizeElement.toString()]?.prizeValue ?: return 0.0
+        return prizeValue
+
+    }
+
+    private suspend fun TicketNumbers.getWinInfoFromResults(draws: List<DrawResponse>): WinInfo {
+        val results = draws.getResults()
+        var specialResults = draws.getSpecialResults()
+        if (specialResults?.size == draws.getResults().size) {
+            if(this.gameType.nonSpecialGame == null) {
+                specialResults = null
+            }
+        }
+        val drawSystemId = draws.getDrawSystemId()
         val winningNumbers: MutableList<WinningNumbers> = mutableListOf()
         val hits = this.numbers.filter { results.contains(it) }.size
         var specialHits: Int?
@@ -106,8 +152,10 @@ class LottoApi private constructor(
                     WinningNumbers(
                         numbers = this.numbers.sorted(),
                         specialNumbers = this.specialNumbers.sorted(),
-                        hits = "$hits+$specialHits",
-                        gameType = this.gameType.gameName
+                        hits = hits,
+                        specialHits = specialHits,
+                        prize = getPrizeInfo(drawSystemId = drawSystemId, hits = hits, specialHits = specialHits),
+                        gameType = this.gameType
                     )
                 )
             )
@@ -119,8 +167,9 @@ class LottoApi private constructor(
                 winningNumbers.add(
                     WinningNumbers(
                         numbers = this.numbers.sorted(),
-                        hits = specialHits.toString(),
-                        gameType = this.gameType.gameName
+                        hits = specialHits,
+                        prize = getPrizeInfo(drawSystemId = drawSystemId, hits = specialHits, isSpecial = true),
+                        gameType = this.gameType
                     )
                 )
             }
@@ -131,8 +180,9 @@ class LottoApi private constructor(
             winningNumbers.add(
                 WinningNumbers(
                     numbers = this.numbers.sorted(),
-                    hits = hits.toString(),
-                    gameType = gameType.gameName
+                    hits = hits,
+                    prize = getPrizeInfo(drawSystemId, hits),
+                    gameType = gameType
                 )
             )
         }
@@ -146,7 +196,7 @@ class LottoApi private constructor(
         )
     }
 
-    private fun TicketNumbers.checkTicketNumbers(draws: List<DrawResponse>): WinInfo {
+    private suspend fun TicketNumbers.checkTicketNumbers(draws: List<DrawResponse>): WinInfo {
         if (this.specialNumbers == null && (this.gameType.specialRange != null || this.gameType.specialAmount != null)) {
             return specialsNeededInfo
         }
@@ -157,16 +207,7 @@ class LottoApi private constructor(
             return invalidRangeInfo
         }
 
-        val results: List<Int> = draws.getResults()
-        var specialResults: List<Int>? = draws.getSpecialResults()
-
-        if (specialResults?.size == draws.getResults().size) {
-            if(this.gameType.nonSpecialGame == null) {
-                specialResults = null
-            }
-        }
-
-        return this.getWinInfoFromResults(results, specialResults)
+        return this.getWinInfoFromResults(draws)
     }
 
     private fun List<DrawResponse>.getResults(): List<Int> {

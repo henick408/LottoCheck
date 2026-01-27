@@ -1,6 +1,6 @@
-package org.henick.lottolib.network.dto
+package org.henick.lottolib.network.dto.results
 
-data class Result(
+data class ResultDto(
     val drawDate: String,
     val drawSystemId: Int,
     val gameType: String,
