@@ -26,6 +26,9 @@ class LottoApi private constructor(
             if (code == 401) {
                 throw LottoInvalidApiTokenException("Wprowadzony token jest niepoprawnym tokenem LottoApi")
             }
+            if (code == 429) {
+                throw LottoTooManyApiRequestsException("Przeslano za duzo zapytan do lotto api w krotkim czasie")
+            }
             return LottoApi(lottoService)
         }
         private val invalidSizeInfo = WinInfo(
