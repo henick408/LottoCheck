@@ -9,4 +9,10 @@ data class CheckResponse(
     val specialResults: List<Int>? = null,
     val winInfoJson: List<WinInfo>? = null,
     val info: String? = null
-)
+) {
+    fun getPrizes(): List<Double> {
+        val prizes: MutableList<Double> = mutableListOf()
+        this.winInfoJson?.forEach { prizes.addAll(it.getPrizes()) }
+        return prizes
+    }
+}
