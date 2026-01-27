@@ -1,7 +1,7 @@
-package org.henick.lottolib.network.dto
+package org.henick.lottolib.network.dto.prizes
 
 data class PrizeResponse(
-    val prizes: Prizes,
+    val prizes: Map<String, PrizeDto>,
     val drawDate: String,
     val drawSystemId: Int,
     val gameType: String,

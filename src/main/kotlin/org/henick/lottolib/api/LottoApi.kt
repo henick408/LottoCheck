@@ -8,7 +8,7 @@ import org.henick.lottolib.model.WinInfo
 import org.henick.lottolib.model.WinningNumbers
 import org.henick.lottolib.network.ApiInstance
 import org.henick.lottolib.network.LottoService
-import org.henick.lottolib.network.dto.DrawResponse
+import org.henick.lottolib.network.dto.results.DrawResponse
 import java.time.LocalDate
 
 class LottoApi private constructor(

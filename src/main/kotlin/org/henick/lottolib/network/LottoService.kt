@@ -1,7 +1,8 @@
 package org.henick.lottolib.network
 
-import org.henick.lottolib.network.dto.DrawResponse
-import org.henick.lottolib.network.dto.PrizeResponse
+import org.henick.lottolib.network.dto.results.DrawResponse
+import org.henick.lottolib.network.dto.prizes.PrizeEuroJackpotResponse
+import org.henick.lottolib.network.dto.prizes.PrizeResponse
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Path
@@ -27,5 +28,10 @@ interface LottoService {
         @Path("drawType") drawType: String,
         @Path("drawSystemId") drawSystemId: Int
     ): Response<List<PrizeResponse>>
+
+    @GET("draw-prizes/eurojackpot/{drawSystemId}")
+    suspend fun getPrizesEuroJackpot(
+        @Path("drawSystemId") drawSystemId: Int
+    ): Response<List<PrizeEuroJackpotResponse>>
 
 }
