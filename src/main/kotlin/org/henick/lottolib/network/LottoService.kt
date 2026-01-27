@@ -24,13 +24,13 @@ interface LottoService {
     ): Response<List<DrawResponse>>
 
     @GET("draw-prizes/{drawType}/{drawSystemId}")
-    suspend fun getPrizesByGame(
-        @Path("drawType") drawType: String,
+    suspend fun getPrizesInfoByGame(
+        @Path("drawType") gameType: String,
         @Path("drawSystemId") drawSystemId: Int
     ): Response<List<PrizeResponse>>
 
     @GET("draw-prizes/eurojackpot/{drawSystemId}")
-    suspend fun getPrizesEuroJackpot(
+    suspend fun getPrizesInfoEuroJackpot(
         @Path("drawSystemId") drawSystemId: Int
     ): Response<List<PrizeEuroJackpotResponse>>
 
