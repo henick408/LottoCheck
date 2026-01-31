@@ -147,7 +147,7 @@ class LottoApi private constructor(
 
         if (this.specialNumbers != null && specialResults != null) {
             specialHits = this.specialNumbers.filter { specialResults.contains(it) }.size
-            if(!(hits >= 3 || (hits == 2 && specialHits >= 1) || (hits == 1 && specialHits == 2))) {
+            if(hits + specialHits < 3) {
                 return noHitsWinInfo
             }
             return WinInfo(

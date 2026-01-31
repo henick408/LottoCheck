@@ -7,8 +7,8 @@ class Ticket(
     val drawDate: LocalDate,
     val ticketNumbers: MutableList<TicketNumbers> = mutableListOf()
 ) {
-    fun add(ticketNumbers: TicketNumbers): Boolean {
-        this.ticketNumbers.add(ticketNumbers)
+    fun addNumbers(numbers: Set<Int>, specialNumbers: Set<Int>? = null): Boolean {
+        this.ticketNumbers.add(TicketNumbers(this.gameType, numbers, specialNumbers))
         return true
     }
 }
