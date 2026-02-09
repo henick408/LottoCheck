@@ -46,27 +46,27 @@ class LottoApi private constructor(
     }
 
     internal suspend fun getLastDraws(): List<DrawResponse> {
-        return service.getLastDrawsInfo().body()!!
+        return service.getLastDrawsInfo().body() ?: listOf()
     }
 
     internal suspend fun getLastDrawsPerGame(gameType: GameType): List<DrawResponse> {
-        return service.getLastDrawsInfoPerGame(gameType.gameName).body()!!
+        return service.getLastDrawsInfoPerGame(gameType.gameName).body() ?: listOf()
     }
 
     internal suspend fun getDrawsByDate(drawDate: LocalDate): List<DrawResponse> {
-        return service.getDrawsInfoByDate(drawDate.toString()).body()!!
+        return service.getDrawsInfoByDate(drawDate.toString()).body() ?: listOf()
     }
 
     internal suspend fun getDrawsByDatePerGame(gameType: GameType, drawDate: LocalDate): List<DrawResponse> {
-        return service.getDrawsInfoByDate(drawDate.toString()).body()!!.filter { it.gameType == gameType.gameName }
+        return service.getDrawsInfoByDate(drawDate.toString()).body()?.filter { it.gameType == gameType.gameName } ?: listOf()
     }
 
     internal suspend fun getPrizesPerGame(gameType: GameType, drawSystemId: Int): List<PrizeResponse> {
-        return service.getPrizesInfoByGame(gameType.gameName, drawSystemId).body()!!.filterNot { it.gameType == "SuperSzansa" }
+        return service.getPrizesInfoByGame(gameType.gameName, drawSystemId).body()?.filterNot { it.gameType == "SuperSzansa" } ?: listOf()
     }
 
     internal suspend fun getPrizesEuroJackpot(drawSystemId: Int): List<PrizeEuroJackpotResponse> {
-        return service.getPrizesInfoEuroJackpot(drawSystemId).body()!!
+        return service.getPrizesInfoEuroJackpot(drawSystemId).body() ?: listOf()
     }
 
     suspend fun checkTicket(ticket: Ticket): CheckResponse {
