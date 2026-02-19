@@ -16,19 +16,12 @@ import io.github.henick408.lottocheck.network.dto.results.DrawResponse
 import java.time.LocalDate
 
 class LottoApi private constructor(
-    val service: LottoService
+    private val service: LottoService
 ) {
 
     companion object {
-        suspend fun init(apiKey: String): LottoApi {
+        fun init(apiKey: String): LottoApi {
             val lottoService: LottoService = ApiInstance { apiKey }.createService()
-            val code = lottoService.getLastDrawsInfo().code()
-            if (code == 401) {
-                throw LottoInvalidApiTokenException("Wprowadzony token jest niepoprawnym tokenem LottoApi")
-            }
-            if (code == 429) {
-                throw LottoTooManyApiRequestsException("Przeslano za duzo zapytan do lotto api w krotkim czasie")
-            }
             return LottoApi(lottoService)
         }
         private val invalidSizeInfo = WinInfo(
@@ -43,30 +36,50 @@ class LottoApi private constructor(
         private val specialsNeededInfo = WinInfo(
             info = "Ta gra wymaga dwoch zestawow liczb"
         )
+        private fun checkResponseCode(code: Int) {
+            if (code == 401) {
+                throw LottoInvalidApiTokenException("Wprowadzony token jest niepoprawnym tokenem LottoApi")
+            }
+            if (code == 429) {
+                throw LottoTooManyApiRequestsException("Przeslano za duzo zapytan do lotto api w krotkim czasie")
+            }
+        }
     }
 
-    internal suspend fun getLastDraws(): List<DrawResponse> {
-        return service.getLastDrawsInfo().body() ?: listOf()
+    suspend fun getLastDraws(): List<DrawResponse> {
+        val response = service.getLastDrawsInfo()
+        checkResponseCode(response.code())
+        return response.body() ?: listOf()
     }
 
-    internal suspend fun getLastDrawsPerGame(gameType: GameType): List<DrawResponse> {
-        return service.getLastDrawsInfoPerGame(gameType.gameName).body() ?: listOf()
+    suspend fun getLastDrawsPerGame(gameType: GameType): List<DrawResponse> {
+        val response = service.getLastDrawsInfoPerGame(gameType.gameName)
+        checkResponseCode(response.code())
+        return response.body() ?: listOf()
     }
 
-    internal suspend fun getDrawsByDate(drawDate: LocalDate): List<DrawResponse> {
-        return service.getDrawsInfoByDate(drawDate.toString()).body() ?: listOf()
+    suspend fun getDrawsByDate(drawDate: LocalDate): List<DrawResponse> {
+        val response = service.getDrawsInfoByDate(drawDate.toString())
+        checkResponseCode(response.code())
+        return response.body() ?: listOf()
     }
 
-    internal suspend fun getDrawsByDatePerGame(gameType: GameType, drawDate: LocalDate): List<DrawResponse> {
-        return service.getDrawsInfoByDate(drawDate.toString()).body()?.filter { it.gameType == gameType.gameName } ?: listOf()
+    suspend fun getDrawsByDatePerGame(gameType: GameType, drawDate: LocalDate): List<DrawResponse> {
+        val response = service.getDrawsInfoByDate(drawDate.toString())
+        checkResponseCode(response.code())
+        return response.body()?.filter { it.gameType == gameType.gameName } ?: listOf()
     }
 
-    internal suspend fun getPrizesPerGame(gameType: GameType, drawSystemId: Int): List<PrizeResponse> {
-        return service.getPrizesInfoByGame(gameType.gameName, drawSystemId).body()?.filterNot { it.gameType == "SuperSzansa" } ?: listOf()
+    suspend fun getPrizesPerGame(gameType: GameType, drawSystemId: Int): List<PrizeResponse> {
+        val response = service.getPrizesInfoByGame(gameType.gameName, drawSystemId)
+        checkResponseCode(response.code())
+        return response.body()?.filterNot { it.gameType == "SuperSzansa" } ?: listOf()
     }
 
-    internal suspend fun getPrizesEuroJackpot(drawSystemId: Int): List<PrizeEuroJackpotResponse> {
-        return service.getPrizesInfoEuroJackpot(drawSystemId).body() ?: listOf()
+    suspend fun getPrizesEuroJackpot(drawSystemId: Int): List<PrizeEuroJackpotResponse> {
+        val response = service.getPrizesInfoEuroJackpot(drawSystemId)
+        checkResponseCode(response.code())
+        return response.body() ?: listOf()
     }
 
     suspend fun checkTicket(ticket: Ticket): CheckResponse {
