@@ -8,7 +8,6 @@ class Ticket(
     val ticketNumbers: MutableList<TicketNumbers> = mutableListOf()
 ) {
     fun addNumbers(numbers: Set<Int>, specialNumbers: Set<Int>? = null): Boolean {
-        this.ticketNumbers.add(TicketNumbers(this.gameType, numbers, specialNumbers))
-        return true
+        return this.ticketNumbers.add(TicketNumbers(this.gameType, numbers, specialNumbers))
     }
 }
