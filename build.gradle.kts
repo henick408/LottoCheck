@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "io.github.henick408"
-version = "1.0.0"
+version = "1.0.1"
 
 repositories {
     mavenCentral()
@@ -25,7 +25,7 @@ kotlin {
 }
 
 mavenPublishing {
-    coordinates("io.github.henick408", "lottocheck", "1.0.0")
+    coordinates("io.github.henick408", "lottocheck", "1.0.1")
 
     pom {
         name.set("Lotto Check")
